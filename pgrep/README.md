@@ -1,0 +1,1 @@
+`$ cargo run -- Hello -f test_data/t1.txt`
