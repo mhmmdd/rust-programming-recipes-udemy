@@ -2,20 +2,11 @@ use clap::{clap_app, crate_version};
 use regex::Regex;
 use std::path::Path;
 use failure::{Error, Fail};
-use std::fmt;
-use failure::_core::fmt::Formatter;
 
-#[derive(Debug)]
+#[derive(Debug, Fail)]
+#[fail(display = "Argument not provided '{}'", arg)]
 struct ArgErr {
     arg: &'static str
-}
-
-impl Fail for ArgErr {}
-
-impl fmt::Display for ArgErr {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "Argument Not provided: {}", self.arg)
-    }
 }
 
 #[derive(Debug)]
@@ -41,7 +32,13 @@ fn process_file<P: AsRef<Path>>(p: P, re: Regex) -> Result<Vec<Record>, Error> {
     Ok(res)
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
+    if let Err(e) = run() {
+        println!("There was an error: {}", e);
+    }
+}
+
+fn run() -> Result<(), Error> {
     let cp = clap_app!(pgrep =>
         (version: crate_version!())
         (about: "A Grep like program")
