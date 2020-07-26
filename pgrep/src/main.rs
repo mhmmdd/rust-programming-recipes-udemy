@@ -15,7 +15,7 @@ struct Record {
     text: String,
 }
 
-fn process_file<P: AsRef<Path>>(p: P, re: Regex) -> Result<Vec<Record>, Error> {
+fn process_file<P: AsRef<Path>>(p: P, re: &Regex) -> Result<Vec<Record>, Error> {
     let mut res = Vec::new();
     let bts = std::fs::read(p)?;
 
@@ -30,6 +30,33 @@ fn process_file<P: AsRef<Path>>(p: P, re: Regex) -> Result<Vec<Record>, Error> {
         }
     }
     Ok(res)
+}
+
+fn process_path<P, FF, EF>(p: P, re: &Regex, ff: &FF, ef: &EF) -> Result<(), Error>
+    where P: AsRef<Path>,
+          FF: Fn(&Path, Vec<Record>),
+          EF: Fn(Error)
+{
+    let p = p.as_ref();
+    let metadata = p.metadata()?;
+
+    let file_type = metadata.file_type();
+
+    if file_type.is_file() {
+        let dt = process_file(p, re)?;
+        ff(p, dt);
+    }
+
+    if file_type.is_dir() {
+        let dd = std::fs::read_dir(p)?;
+        for d in dd {
+            if let Err(e) = process_path(d?.path(), re, ff, ef) {
+                ef(e);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn main() {
@@ -49,8 +76,17 @@ fn run() -> Result<(), Error> {
 
     let re = Regex::new(cp.value_of("pattern").unwrap())?;
 
-    let p = process_file(cp.value_of("file")
-                             .ok_or(ArgErr { arg: "file" })?, re);
+    let p = process_path(cp.value_of("file")
+                             .ok_or(ArgErr { arg: "file" })?,
+                         &re,
+                         &|pt, v| {
+                             println!("{:?}", pt);
+                             println!("{:?}", v);
+                         },
+                         &|e| {
+                             println!("Error: {}", e);
+                         },
+    );
 
 
     println!("{:?}", p);
